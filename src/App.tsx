@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { LatLngTuple } from 'leaflet';
-import * as tf from '@tensorflow/tfjs';
-import * as ort from 'onnxruntime-web';
 import Map from './components/Map';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -9,18 +7,16 @@ import { loadModel, runPrediction } from './utils/mlUtils';
 import type { TripPrediction } from './types/predictions';
 
 function App() {
-  const [model, setModel] = useState<tf.LayersModel | ort.InferenceSession | null>(null);
+  const [model, setModel] = useState(null);
   const [startLocation, setStartLocation] = useState<LatLngTuple | null>(null);
   const [endLocation, setEndLocation] = useState<LatLngTuple | null>(null);
   const [predictions, setPredictions] = useState<TripPrediction | null>(null);
+  const [segments, setSegments] = useState<Record<string, any> | null>(null);
+  const [outliers, setOutliers] = useState<LatLngTuple[] | null>(null);
 
   const handleModelUpload = async (modelFile: File) => {
-    try {
-      const loadedModel = await loadModel(modelFile);
-      setModel(loadedModel);
-    } catch (error) {
-      console.error('Error loading model:', error);
-    }
+    const loadedModel = await loadModel(modelFile);
+    setModel(loadedModel);
   };
 
   const handleStartLocationSelect = (lat: number, lng: number) => {
@@ -41,7 +37,7 @@ function App() {
         startLat: start[0],
         startLng: start[1],
         endLat: end[0],
-        endLng: end[1]
+        endLng: end[1],
       });
 
       setPredictions({
@@ -58,7 +54,7 @@ function App() {
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <Header />
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-1">
             <Sidebar
@@ -73,6 +69,8 @@ function App() {
             <Map
               startLocation={startLocation}
               endLocation={endLocation}
+              outliers={outliers}
+              segments={segments}
               onStartLocationSelect={handleStartLocationSelect}
               onEndLocationSelect={handleEndLocationSelect}
               predictions={predictions}
