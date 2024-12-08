@@ -4,13 +4,15 @@ import DatasetUpload from './DatasetUpload';
 import { trainModel } from '../utils/trainingUtils';
 
 interface TrainingPanelProps {
-  onModelTrained: (model: any) => void;
+  onModelTrained: (model: any, segments: Record<string, any>) => void;
 }
 
 const TrainingPanel: React.FC<TrainingPanelProps> = ({ onModelTrained }) => {
   const [dataset, setDataset] = useState<File | null>(null);
   const [isTraining, setIsTraining] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [segments, setSegments] = useState<Record<string, any> | null>(null);
+  const [outliersRemoved, setOutliersRemoved] = useState<number | null>(null);
 
   const handleDatasetUpload = (file: File) => {
     setDataset(file);
@@ -21,15 +23,27 @@ const TrainingPanel: React.FC<TrainingPanelProps> = ({ onModelTrained }) => {
 
     setIsTraining(true);
     try {
-      const trainedModel = await trainModel(dataset, (progress) => {
+      const { model, segments: rideSegments } = await trainModel(dataset, (progress) => {
         setProgress(progress);
       });
-      onModelTrained(trainedModel);
+
+      // Extract and set outlier information and segmentation insights
+      const outlierCount = await getOutlierCount(dataset); // Function to count outliers
+      setOutliersRemoved(outlierCount);
+      setSegments(rideSegments);
+
+      onModelTrained(model, rideSegments);
     } catch (error) {
       console.error('Training error:', error);
     } finally {
       setIsTraining(false);
     }
+  };
+
+  // Example function to simulate fetching outlier count (should be implemented in trainingUtils or backend)
+  const getOutlierCount = async (file: File): Promise<number> => {
+    // Simulate processing or fetching outlier count
+    return new Promise((resolve) => setTimeout(() => resolve(123), 2000)); // Example: 123 outliers detected
   };
 
   return (
@@ -70,6 +84,30 @@ const TrainingPanel: React.FC<TrainingPanelProps> = ({ onModelTrained }) => {
           </div>
         )}
       </div>
+
+      {outliersRemoved !== null && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold">Outlier Detection</h3>
+          <p className="text-sm text-gray-600">Outliers removed: {outliersRemoved}</p>
+        </div>
+      )}
+
+      {segments && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold">Segmentation Insights</h3>
+          <ul>
+            {Object.keys(segments).map((cabType) => (
+              <li key={cabType} className="mb-2">
+                <p><strong>{cabType}</strong></p>
+                <p>Total Rides: {segments[cabType].totalRides}</p>
+                <p>Total Distance: {segments[cabType].totalDistance.toFixed(2)} km</p>
+                <p>Average Price per Km: ${segments[cabType].averagePricePerKm.toFixed(2)}</p>
+                <p>Average Duration: {segments[cabType].averageDuration.toFixed(2)} mins</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
