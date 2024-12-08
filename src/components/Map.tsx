@@ -1,8 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import { Icon, LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin } from 'lucide-react';
 
 // Fix for default marker icons in React-Leaflet
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -19,6 +18,8 @@ Icon.Default.mergeOptions({
 interface MapProps {
   startLocation: LatLngTuple | null;
   endLocation: LatLngTuple | null;
+  outliers?: LatLngTuple[]; // Array of outlier locations
+  segments?: Record<string, any>; // Segmented insights
   onStartLocationSelect: (lat: number, lng: number) => void;
   onEndLocationSelect: (lat: number, lng: number) => void;
   predictions?: {
@@ -28,51 +29,33 @@ interface MapProps {
   };
 }
 
-const LocationSelector: React.FC<{
-  onStartLocationSelect: (lat: number, lng: number) => void;
-  onEndLocationSelect: (lat: number, lng: number) => void;
-}> = ({ onStartLocationSelect, onEndLocationSelect }) => {
-  const [selectingStart, setSelectingStart] = useState(true);
-
-  const map = useMapEvents({
-    click(e) {
-      const { lat, lng } = e.latlng;
-      if (selectingStart) {
-        onStartLocationSelect(lat, lng);
-      } else {
-        onEndLocationSelect(lat, lng);
-      }
-      setSelectingStart(!selectingStart);
-    },
-  });
-
-  return (
-    <div className="leaflet-top leaflet-right">
-      <div className="leaflet-control leaflet-bar bg-white p-3 m-3 rounded-lg shadow-lg">
-        <p className="text-sm font-medium mb-2">Click on the map to select:</p>
-        <p className="text-sm text-blue-600">
-          {selectingStart ? 'Pickup Location' : 'Drop-off Location'}
-        </p>
-      </div>
-    </div>
-  );
-};
-
 const Map: React.FC<MapProps> = ({
   startLocation,
   endLocation,
+  outliers,
+  segments,
   onStartLocationSelect,
   onEndLocationSelect,
   predictions,
 }) => {
-  const defaultCenter: LatLngTuple = [40.7128, -74.0060]; // New York City
+  const defaultCenter: LatLngTuple = [40.7128, -74.0060]; // Default center: New York City
+
+  const outlierIcon = new Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
+
   const startIcon = new Icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
-    shadowSize: [41, 41]
+    shadowSize: [41, 41],
   });
 
   const endIcon = new Icon({
@@ -81,7 +64,7 @@ const Map: React.FC<MapProps> = ({
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
-    shadowSize: [41, 41]
+    shadowSize: [41, 41],
   });
 
   return (
@@ -95,19 +78,38 @@ const Map: React.FC<MapProps> = ({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        <LocationSelector
-          onStartLocationSelect={onStartLocationSelect}
-          onEndLocationSelect={onEndLocationSelect}
-        />
+
         {startLocation && (
           <Marker position={startLocation} icon={startIcon}>
             <Popup>Pickup Location</Popup>
           </Marker>
         )}
+
         {endLocation && (
           <Marker position={endLocation} icon={endIcon}>
             <Popup>Drop-off Location</Popup>
           </Marker>
+        )}
+
+        {outliers?.map((location, index) => (
+          <Marker key={index} position={location} icon={outlierIcon}>
+            <Popup>Outlier Location</Popup>
+          </Marker>
+        ))}
+
+        {segments && (
+          <div className="leaflet-top leaflet-right">
+            <div className="leaflet-control leaflet-bar bg-white p-3 m-3 rounded-lg shadow-lg">
+              <h3 className="font-semibold text-sm">Segment Insights</h3>
+              <ul className="text-xs">
+                {Object.keys(segments).map(cabType => (
+                  <li key={cabType}>
+                    <strong>{cabType}</strong>: {segments[cabType].totalRides} rides
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         )}
       </MapContainer>
     </div>
